@@ -183,6 +183,12 @@ select:disabled { opacity: .7; }
 .task:hover { background: var(--surface-2); }
 .task input { margin: 0; accent-color: var(--primary); flex: none; }
 .task:has(input:checked) { background: var(--primary-soft); }
+.task.is-child { padding-left: 34px; position: relative; }
+.task.is-child::before {
+  content: ""; position: absolute; left: 18px; top: 0; bottom: 50%;
+  width: 10px; border-left: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
 .task-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .task-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .task-parent { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

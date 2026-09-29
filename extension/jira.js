@@ -245,28 +245,44 @@
     return out;
   }
 
-  // -> [{ key, summary, status, category, type, subtask, parent: { key, summary } | null }]
+  function mapIssue(i, me) {
+    const f = i.fields || {};
+    return {
+      key: i.key,
+      summary: f.summary || "",
+      status: f.status?.name || "",
+      category: CATEGORY[f.status?.statusCategory?.key] || "todo",
+      type: f.issuetype?.name || "",
+      subtask: !!f.issuetype?.subtask,
+      parent: f.parent ? { key: f.parent.key, summary: f.parent.fields?.summary || "" } : null,
+      assignee: f.assignee?.displayName || "",
+      mine: !!(me && f.assignee?.accountId === me.accountId),
+    };
+  }
+
+  // -> [{ key, summary, status, category, type, subtask, parent, assignee, mine }]
   // "Stories only" still includes sub-tasks assigned to you (e.g. a sub-task under someone
-  // else's Story), since that's where the time is usually logged.
+  // else's Story). The parents of those sub-tasks are fetched too, even when they're
+  // assigned to someone else or done, so you can log against the main task as well.
   async function getIssues(projectKey, { storiesOnly = true } = {}) {
     assertProjectKey(projectKey);
+    const fields = ["summary", "status", "issuetype", "parent", "assignee"];
     const jql =
       `project = "${projectKey}"` +
       (storiesOnly ? " AND (type = Story OR type in subTaskIssueTypes())" : "") +
       " AND assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC";
-    const issues = await searchAll(jql, ["summary", "status", "issuetype", "parent"]);
-    return issues.map((i) => {
-      const f = i.fields || {};
-      return {
-        key: i.key,
-        summary: f.summary || "",
-        status: f.status?.name || "",
-        category: CATEGORY[f.status?.statusCategory?.key] || "todo",
-        type: f.issuetype?.name || "",
-        subtask: !!f.issuetype?.subtask,
-        parent: f.parent ? { key: f.parent.key, summary: f.parent.fields?.summary || "" } : null,
-      };
-    });
+    const [me, raw] = await Promise.all([getMyself(), searchAll(jql, fields)]);
+    const issues = raw.map((i) => mapIssue(i, me));
+
+    const have = new Set(issues.map((i) => i.key));
+    const missing = [...new Set(issues.filter((i) => i.parent && !have.has(i.parent.key)).map((i) => i.parent.key))]
+      .filter((k) => /^[A-Z][A-Z0-9_]+-\d+$/.test(k));
+    for (let n = 0; n < missing.length; n += 100) {
+      const chunk = missing.slice(n, n + 100);
+      const parents = await searchAll(`key in (${chunk.join(",")})`, fields);
+      issues.push(...parents.map((i) => mapIssue(i, me)));
+    }
+    return issues;
   }
 
   // Project keys you've logged time to recently, most recent first (from Jira, so it

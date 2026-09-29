@@ -26,7 +26,7 @@ With the extension loaded, open `chrome-extension://<extension-id>/diagnostics.h
 ## How the page picks what to show
 
 - **Project:** the page opens on the project you last logged time to. That's the last project you logged to from this page, or failing that, your most recent worklog in Jira over the last 30 days. Recent projects are listed first under "Recently logged". WHIP is used when there's no history.
-- **Tasks:** by default, open Stories *and* subtasks assigned to you, so subtasks under someone else's Story appear too. Each subtask shows its parent. Turn off **Stories & subtasks** to list every open issue type assigned to you.
+- **Tasks:** by default, open Stories *and* subtasks assigned to you. Each subtask is listed under its parent (main) task, so you can log time on either. The parent is included even if it's assigned to someone else; it's marked "Assigned to …". Turn off **Stories & subtasks** to list every open issue type assigned to you.
 
 ## Files
 

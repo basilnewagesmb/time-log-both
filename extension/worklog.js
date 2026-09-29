@@ -241,36 +241,60 @@
     }
 
     const q = els.taskFilter.value.trim().toLowerCase();
-    const visible = q
-      ? state.issues.filter((i) =>
-          [i.key, i.summary, i.parent?.key, i.parent?.summary].some((v) => v && v.toLowerCase().includes(q)))
-      : state.issues;
+    const byKey = new Map(state.issues.map((i) => [i.key, i]));
+    const matches = (i) => [i.key, i.summary].some((v) => v && v.toLowerCase().includes(q));
 
-    if (!visible.length) {
+    // A match on a parent shows its sub-tasks; a match on a sub-task shows its parent for context.
+    const shown = new Set();
+    for (const i of state.issues) {
+      if (q && !matches(i) && !(i.parent && byKey.has(i.parent.key) && matches(byKey.get(i.parent.key)))) continue;
+      shown.add(i.key);
+      if (i.parent && byKey.has(i.parent.key)) shown.add(i.parent.key);
+    }
+
+    // Group sub-tasks under their parent; groups keep Jira's order (most recently updated first).
+    const groups = new Map();
+    for (const i of state.issues) {
+      if (!shown.has(i.key)) continue;
+      const top = i.parent && byKey.has(i.parent.key) ? i.parent.key : i.key;
+      if (!groups.has(top)) groups.set(top, []);
+      if (top !== i.key) groups.get(top).push(i);
+    }
+    const rows = [];
+    for (const [top, children] of groups) {
+      rows.push({ issue: byKey.get(top), child: false });
+      for (const c of children) rows.push({ issue: c, child: true });
+    }
+
+    if (!rows.length) {
       els.taskList.replaceChildren(el("div", { class: "empty" }, el("strong", { text: "No matches" }), `Nothing matches "${els.taskFilter.value.trim()}".`));
     } else {
-      els.taskList.replaceChildren(...visible.map((issue) => {
-        const parentText = issue.parent ? `${issue.parent.key} · ${issue.parent.summary}` : "";
+      els.taskList.replaceChildren(...rows.map(({ issue, child }) => {
+        // Only show the parent line when the parent isn't directly above.
+        const parentText = issue.parent && !child ? `${issue.parent.key} · ${issue.parent.summary}` : "";
+        const notMine = !issue.mine && issue.assignee ? `Assigned to ${issue.assignee}` : (!issue.mine ? "Unassigned" : "");
+        const meta = [parentText && `↳ ${parentText}`, notMine].filter(Boolean).join(" · ");
         const input = el("input", {
           type: "radio", name: "task", value: issue.key,
           checked: issue.key === state.selectedKey,
           "aria-label": `${issue.key} ${issue.summary}, ${issue.status}` +
-            (issue.parent ? `, ${issue.type || "subtask"} of ${parentText}` : ""),
+            (issue.parent ? `, ${issue.type || "subtask"} of ${issue.parent.key}` : "") +
+            (notMine ? `, ${notMine}` : ""),
         });
-        return el("label", { class: `task${issue.subtask ? " is-subtask" : ""}`, title: issue.summary },
+        return el("label", { class: `task${issue.subtask ? " is-subtask" : ""}${child ? " is-child" : ""}`, title: issue.summary },
           input,
           el("span", { class: "task-main" },
             el("span", { class: "task-line" },
               issue.subtask ? el("span", { class: "task-type", text: "Subtask" }) : null,
               el("span", { class: "task-key", text: issue.key }),
               el("span", { class: "task-summary", text: issue.summary })),
-            issue.parent ? el("span", { class: "task-parent", title: parentText, text: `↳ ${parentText}` }) : null),
+            meta ? el("span", { class: "task-parent", title: meta, text: meta }) : null),
           el("span", { class: `pill ${issue.category}`, text: issue.status }));
       }));
     }
 
     els.taskCount.textContent = q
-      ? `${visible.length} of ${state.issues.length} tasks`
+      ? `${rows.length} of ${state.issues.length} tasks`
       : `${state.issues.length} task${state.issues.length === 1 ? "" : "s"}`;
     updateSubmitState();
   }
