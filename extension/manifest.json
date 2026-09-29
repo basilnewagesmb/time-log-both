@@ -22,6 +22,12 @@
   },
   "permissions": ["declarativeNetRequest"],
   "host_permissions": ["https://newagesmb.atlassian.net/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["worklog.html", "icons/icon16.png"],
+      "matches": ["https://time-log-both-launcher.vercel.app/*"]
+    }
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
