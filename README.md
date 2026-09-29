@@ -12,6 +12,6 @@ A Chrome extension for logging time to Jira Cloud (`newagesmb.atlassian.net`) fr
 
 To update later: `git pull`, then click the reload icon on the extension's card in `chrome://extensions`.
 
-To send your daily hours to the team sheet, click ⚙ in the extension and paste the web app URL and token from the sheet owner. Setting up the sheet and the 5 PM Chat reminder is covered in [sheets/README.md](sheets/README.md).
+Your hours go to the team sheet automatically every time you log time. Setting up the sheet and the 5 PM Chat reminder is covered in [sheets/README.md](sheets/README.md).
 
 See [extension/README.md](extension/README.md) for how it works and for troubleshooting.

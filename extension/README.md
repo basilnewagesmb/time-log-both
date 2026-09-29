@@ -36,8 +36,7 @@ With the extension loaded, open `chrome-extension://<extension-id>/diagnostics.h
 | `background.js` | Opens `worklog.html` in a new tab when you click the toolbar icon. |
 | `jira.js` | Jira client: `Jira.getMyself`, `getProjects`, `getIssues`, `logWork`, `getTodaysWorklogs`, `openJiraTab`. |
 | `worklog.html` / `.css` / `.js` | The Daily Work Log UI. |
-| `sheet.js` | Sends your day's total to the team Google Sheet (see `../sheets/README.md`). |
-| `settings.html` / `.js` | Settings page (⚙ icon): Google Sheet web app URL and token, stored in this browser only. |
+| `sheet.js` | Sends your day's total to the team Google Sheet. The web app URL and token are set at the top of the file (see `../sheets/README.md`). |
 | `diagnostics.html` / `.js` | Connection test page. |
 | `icons/` | 16, 48 and 128 px toolbar icons. |
 
@@ -45,7 +44,7 @@ Every request is sent with `credentials: "include"`, `Accept: application/json` 
 
 ## Troubleshooting
 
-**"Couldn't update the team sheet".** Open ⚙ Settings and click **Save & test**. "Invalid token" means the token is wrong. "Returned a Google page" means the web app isn't deployed with access set to **Anyone**. Logging to Jira still works when the sheet sync fails; click **Sync now** in the Today panel to retry.
+**"Couldn't update the team sheet".** "Invalid token" means `SHEET_TOKEN` in `sheet.js` doesn't match the sheet's `TOKEN` script property. "Returned a Google page" means the web app isn't deployed with access set to **Anyone**. Logging to Jira still works when the sheet sync fails; click **Sync now** in the Today panel to retry.
 
 
 **"You're not signed in to Jira" banner.** Jira returned 401 or 403, or redirected to the Atlassian login page. Open https://newagesmb.atlassian.net, sign in, then reload the Daily Work Log tab.

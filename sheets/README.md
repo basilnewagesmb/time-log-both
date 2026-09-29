@@ -26,7 +26,7 @@ Each time someone logs time in the Daily Work Log extension, their total for the
    - *Who has access*: **Anyone**. The extension doesn't sign in to Google; the token is what protects the endpoint.
    
    Copy the **Web app URL**. It ends in `/exec`.
-7. Share the URL and token with the team privately, e.g. in a Chat DM. Don't put them in the repo.
+7. Put the URL and token in `SHEET_URL` and `SHEET_TOKEN` at the top of `extension/sheet.js`, then commit and push. Keep the repo **private**: anyone who can see the token can write rows to the sheet.
 
 When you change `Code.gs`, use **Deploy → Manage deployments → Edit → Version: New version** so the URL stays the same.
 
@@ -34,7 +34,7 @@ When you change `Code.gs`, use **Deploy → Manage deployments → Edit → Vers
 
 ## Each developer
 
-In the extension, click the ⚙ icon (top right), paste the web app URL and token, then click **Save & test**. The Today panel shows "Team sheet updated at …" after each log. If a sync failed, click **Sync now**.
+Nothing to set up: after `git pull` and reloading the extension, the Today panel shows "Team sheet updated at …" after each log. If a sync failed, click **Sync now**.
 
 ## 5 PM reminder (cron-job.org → Google Chat)
 
@@ -46,9 +46,8 @@ In the extension, click the ⚙ icon (top right), paste the web app URL and toke
    - **Headers:** `Content-Type: application/json; charset=UTF-8`
    - **Request body:**
      ```json
-     {"text": "<users/all> Time to log today's work ⏱️\nOpen *Daily Work Log* from the Chrome toolbar, or: chrome-extension://EXTENSION_ID/worklog.html"}
+     {"text": "<users/all> Time to log today's work ⏱️\n<https://time-log-both-launcher.vercel.app|Open Daily Work Log>"}
      ```
-     Replace `EXTENSION_ID` with the ID shown on the extension's card in `chrome://extensions`. It's the same for everyone once the manifest `key` is in place.
 3. **Optional:** add a second job at 16:59 that calls `WEB_APP_URL?action=prepare&token=TOKEN` with `GET`. This creates today's block with a blank row for everyone before the reminder goes out.
 
-**About the link:** a webhook posts to the whole space, not to each person privately, and `<users/all>` notifies everyone in it. Chrome only opens a `chrome-extension://` link for people who have the extension installed. Google Chat may also show it as plain text instead of a clickable link; if so, the message still tells people to click the toolbar icon.
+**About the link:** a webhook posts to the whole space, not to each person privately, and `<users/all>` notifies everyone in it. Google Chat doesn't make `chrome-extension://` links clickable, so the message links to the launcher page in [`launcher/`](../launcher/index.html), deployed at https://time-log-both-launcher.vercel.app, which opens the extension.

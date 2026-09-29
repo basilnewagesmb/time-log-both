@@ -1,37 +1,22 @@
 // Google Sheet sync for the Daily Work Log extension.
-// Talks to the Apps Script web app in /sheets (see sheets/README.md). The web app URL and
-// token are entered on settings.html and kept in this browser only, never in the repo.
+// Talks to the Apps Script web app in /sheets (see sheets/README.md).
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "dwl.sheet";
-  const URL_RE = /^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/s\/[\w-]+\/exec$/;
-
-  function getConfig() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (_) { return {}; }
-  }
-
-  function setConfig(cfg) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ url: cfg.url || "", token: cfg.token || "" }));
-  }
-
-  function isConfigured() {
-    const c = getConfig();
-    return !!(c.url && c.token);
-  }
-
-  function validUrl(url) { return URL_RE.test(url || ""); }
+  // Team sheet web app (sheets/Code.gs). The token only allows writing rows to the sheet.
+  const SHEET_URL =
+    "https://script.google.com/macros/s/AKfycbzs5VYA-0ecqpvyjW9jGBGhjvp2jzO9CnNN_dhAudRotWc0lzuLcgrrt-d7meGSAfFpvQ/exec";
+  const SHEET_TOKEN = "2f14aba8-32ca-4e9d-9b43-828274de8838";
 
   // Apps Script web apps answer a POST with a redirect to script.googleusercontent.com,
   // which fetch follows; text/plain keeps it a "simple" request (no CORS preflight).
-  async function post(payload, cfg = getConfig()) {
-    if (!cfg.url || !cfg.token) throw new Error("Google Sheet isn't set up yet. Open Settings.");
+  async function post(payload) {
     let res;
     try {
-      res = await fetch(cfg.url, {
+      res = await fetch(SHEET_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ ...payload, token: cfg.token }),
+        body: JSON.stringify({ ...payload, token: SHEET_TOKEN }),
         credentials: "omit",
         redirect: "follow",
       });
@@ -51,8 +36,6 @@
     return data;
   }
 
-  function ping(cfg) { return post({ action: "ping" }, cfg); }
-
   // Replaces the developer's row for `date` with these entries (idempotent).
   // entries: [{ projectKey, projectName, issueKey, summary, seconds }]
   function syncDay({ date, developer, accountId, entries }) {
@@ -64,5 +47,5 @@
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   }
 
-  window.Sheet = { getConfig, setConfig, isConfigured, validUrl, ping, syncDay, localIsoDate };
+  window.Sheet = { syncDay, localIsoDate };
 })();

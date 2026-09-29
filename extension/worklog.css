@@ -321,16 +321,9 @@ select:disabled { opacity: .7; }
 .toast-close { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
-/* ---------- Settings & sheet sync ---------- */
-.layout-single { grid-template-columns: minmax(0, 560px); justify-content: center; }
-.settings-intro { margin: 6px 0 18px; font-size: 13px; }
-.settings-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.form-ok { margin: 0 0 12px; padding: 8px 12px; border-radius: 6px; color: var(--success); background: var(--success-soft); font-size: 13px; }
-.back-link { color: var(--primary); text-decoration: none; }
-.back-link:hover { text-decoration: underline; }
+/* ---------- Sheet sync ---------- */
 
 .user-actions { display: flex; align-items: center; gap: 12px; }
-a.icon-btn { text-decoration: none; }
 
 .sync {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;

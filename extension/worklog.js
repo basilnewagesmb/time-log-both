@@ -399,23 +399,11 @@
     els.syncStatus.replaceChildren(text);
   }
 
-  function renderSyncIdle() {
-    if (!Sheet.isConfigured()) {
-      els.syncStatus.dataset.state = "off";
-      els.syncStatus.replaceChildren("Team sheet not connected · ",
-        el("a", { href: "settings.html", text: "Set up" }));
-      els.syncNow.hidden = true;
-      return;
-    }
-    setSyncStatus("idle", "Team sheet connected");
-    els.syncNow.hidden = false;
-  }
-
   // Sends today's full list of entries, so the sheet row always matches Jira
   // (including time logged directly in Jira). Only runs after a successful fetch,
   // so a failed refresh can never overwrite the row with partial data.
   async function syncSheet() {
-    if (!Sheet.isConfigured() || !state.entriesLoaded || state.syncing) return;
+    if (!state.entriesLoaded || state.syncing) return;
     state.syncing = true;
     els.syncNow.disabled = true;
     setSyncStatus("busy", "Updating team sheet…");
@@ -542,7 +530,6 @@
     renderTaskSkeleton();
     renderEntriesSkeleton();
     syncChips();
-    renderSyncIdle();
     bind();
     loadUser();
     loadProjects();
