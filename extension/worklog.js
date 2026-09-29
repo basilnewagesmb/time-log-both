@@ -33,6 +33,8 @@
     progressFill: $("progress-fill"),
     entries: $("entries"),
     toasts: $("toasts"),
+    syncStatus: $("sync-status"),
+    syncNow: $("sync-now"),
   };
 
   const state = {
@@ -43,6 +45,8 @@
     submitting: false,
     projects: [],
     recentKeys: [],
+    entriesLoaded: false,
+    syncing: false,
   };
 
   // ---------- Utilities ----------
@@ -362,8 +366,10 @@
     els.refreshToday.disabled = true;
     try {
       state.entries = await Jira.getTodaysWorklogs();
+      state.entriesLoaded = true;
       renderEntries(highlightId);
       suggestStart();
+      return true;
     } catch (err) {
       els.entries.setAttribute("aria-busy", "false");
       if (!silent) {
@@ -372,9 +378,56 @@
         renderProgress(0);
       }
       handleError(err, "Couldn't load today's entries");
+      return false;
     } finally {
       els.refreshToday.setAttribute("aria-busy", "false");
       els.refreshToday.disabled = false;
+    }
+  }
+
+  // ---------- Team sheet ----------
+
+  function setSyncStatus(stateName, text) {
+    els.syncStatus.dataset.state = stateName;
+    els.syncStatus.replaceChildren(text);
+  }
+
+  function renderSyncIdle() {
+    if (!Sheet.isConfigured()) {
+      els.syncStatus.dataset.state = "off";
+      els.syncStatus.replaceChildren("Team sheet not connected · ",
+        el("a", { href: "settings.html", text: "Set up" }));
+      els.syncNow.hidden = true;
+      return;
+    }
+    setSyncStatus("idle", "Team sheet connected");
+    els.syncNow.hidden = false;
+  }
+
+  // Sends today's full list of entries, so the sheet row always matches Jira
+  // (including time logged directly in Jira). Only runs after a successful fetch,
+  // so a failed refresh can never overwrite the row with partial data.
+  async function syncSheet() {
+    if (!Sheet.isConfigured() || !state.entriesLoaded || state.syncing) return;
+    state.syncing = true;
+    els.syncNow.disabled = true;
+    setSyncStatus("busy", "Updating team sheet…");
+    try {
+      const me = await Jira.getMyself();
+      const names = new Map(state.projects.map((p) => [p.key, p.name]));
+      const entries = state.entries.map((e) => {
+        const projectKey = e.issueKey.split("-")[0];
+        return { projectKey, projectName: names.get(projectKey) || projectKey, issueKey: e.issueKey, summary: e.summary, seconds: e.seconds };
+      });
+      await Sheet.syncDay({ date: Sheet.localIsoDate(), developer: me.displayName, accountId: me.accountId, entries });
+      setSyncStatus("ok", `Team sheet updated at ${formatTime(new Date())}`);
+    } catch (err) {
+      console.error("[Daily Work Log] Sheet sync failed:", err);
+      setSyncStatus("error", "Team sheet not updated");
+      toast(`Couldn't update the team sheet: ${err.message}`, "error");
+    } finally {
+      state.syncing = false;
+      els.syncNow.disabled = false;
     }
   }
 
@@ -432,7 +485,8 @@
       toast(`Logged ${formatHours(hours)} on ${key}.`, "success");
       rememberProject(key.split("-")[0]);
       els.note.value = "";
-      await loadToday({ highlightId: worklog && worklog.id, silent: true });
+      // Don't hold the form while the sheet updates.
+      loadToday({ highlightId: worklog && worklog.id, silent: true }).then((ok) => { if (ok) syncSheet(); });
     } catch (err) {
       handleError(err, `Couldn't log time on ${key}`);
       if (!err.auth) showFormError(err.message);
@@ -467,6 +521,7 @@
     els.hours.addEventListener("input", syncChips);
 
     els.refreshToday.addEventListener("click", () => loadToday());
+    els.syncNow.addEventListener("click", async () => { if (await loadToday({ silent: true })) syncSheet(); });
     els.form.addEventListener("submit", onSubmit);
 
     // Ctrl/Cmd+Enter submits from the note field.
@@ -480,6 +535,7 @@
     renderTaskSkeleton();
     renderEntriesSkeleton();
     syncChips();
+    renderSyncIdle();
     bind();
     loadUser();
     loadProjects();

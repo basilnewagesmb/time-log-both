@@ -9,3 +9,6 @@ desktop.ini
 *.crx
 *.pem
 *.zip
+
+# Private signing key (never commit)
+keys-private/
