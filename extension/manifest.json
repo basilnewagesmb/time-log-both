@@ -3,6 +3,7 @@
   "name": "Daily Work Log",
   "version": "1.0.0",
   "description": "Log time to Jira Cloud (newagesmb.atlassian.net) using your signed-in browser session.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxI96oVHS2xo8inpUtd9z5LOnEZ7a72fwOH4qtaNcmWtFvqwiVMrjRKEcQc0nc8fM4xkWsicJwg3+9ijEZLS0R6hLKoWOlJYGUTwR5FQozNzM+q2XKFiM3f2x9kFC5OanEt/SAxnQHxyCdpeQNu1v7kKE6mnnZmtCk8tKaNXCmFOkXg+p4bYMr+/xzNPkL7oSBSZn+bvMCl35+CRkInJ9xKQTgEIY7acgHVw7feKO4TyO9niVGrO7IcMiAdJ+8Mr0tCbsh7FQNTAGhTtsLmNrrykvk2uUrmgiEs7Hy27Js3OQp85lDPKjh2qDUUOqhKjxv3vB2otLsNI2yWj7EK4BNQIDAQAB",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -19,12 +20,8 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": [
-    "declarativeNetRequest"
-  ],
-  "host_permissions": [
-    "https://newagesmb.atlassian.net/*"
-  ],
+  "permissions": ["declarativeNetRequest"],
+  "host_permissions": ["https://newagesmb.atlassian.net/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }

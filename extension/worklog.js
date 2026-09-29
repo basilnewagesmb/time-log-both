@@ -1,6 +1,13 @@
 (function () {
   "use strict";
 
+  // worklog.html is web-accessible so the launcher page can open it; never run
+  // inside another site's frame (prevents click-jacking the Log time button).
+  if (window.top !== window.self) {
+    document.documentElement.textContent = "Open Daily Work Log directly from the Chrome toolbar.";
+    return;
+  }
+
   const DEFAULT_PROJECT = "WHIP";
   const TARGET_HOURS = 8;
   const LAST_PROJECT_KEY = "dwl.lastProject";

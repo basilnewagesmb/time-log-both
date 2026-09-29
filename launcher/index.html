@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Work Log</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="icon.png">
+  <style>
+    :root {
+      --bg: #f4f5f7; --surface: #fff; --border: #dfe1e6; --text: #172b4d; --muted: #5e6c84;
+      --primary: #0052cc; --primary-hover: #0747a6; --on-primary: #fff; --warn: #fff7d6;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161a1d; --surface: #1d2125; --border: #38414a; --text: #dee4ea; --muted: #9fadbc;
+        --primary: #579dff; --primary-hover: #85b8ff; --on-primary: #1d2125; --warn: #332e1b;
+        color-scheme: dark;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+    }
+    .card {
+      width: 100%; max-width: 440px; text-align: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 32px 28px;
+    }
+    .logo { width: 56px; height: 56px; border-radius: 14px; }
+    h1 { font-size: 22px; margin: 14px 0 4px; }
+    p { margin: 0 0 18px; color: var(--muted); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font: inherit; font-weight: 600; text-decoration: none;
+      background: var(--primary); color: var(--on-primary);
+      padding: 11px 22px; border-radius: 8px; border: 0; cursor: pointer;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+    .note { margin-top: 18px; font-size: 13px; }
+    .setup {
+      text-align: left; background: var(--warn); border-radius: 10px; padding: 14px 16px 14px 34px;
+      margin: 0 0 18px; font-size: 14px;
+    }
+    .setup li { margin: 4px 0; }
+    code { font-size: 13px; }
+    a { color: var(--primary); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img class="logo" src="icon.png" alt="" width="56" height="56">
+    <h1>Daily Work Log</h1>
+
+    <!-- Default / extension found -->
+    <section id="ready">
+      <p id="status" role="status">Time to log today's work.</p>
+      <a class="btn" id="open" href="#">Open Daily Work Log</a>
+      <p class="note">Or click the clock icon in your Chrome toolbar.</p>
+    </section>
+
+    <!-- Extension not detected -->
+    <section id="missing" hidden>
+      <p>The Daily Work Log extension isn't installed in this browser, or it needs updating.</p>
+      <ol class="setup">
+        <li>Download or <code>git pull</code> the latest code from <a id="repo" href="#" target="_blank" rel="noopener">GitHub</a>.</li>
+        <li>Open <code>chrome://extensions</code> and turn on <b>Developer mode</b>.</li>
+        <li>Click <b>Load unpacked</b> and pick the <code>extension</code> folder (or reload it if it's already there).</li>
+        <li>Come back here and click the button again.</li>
+      </ol>
+      <a class="btn" id="retry" href="#">Open Daily Work Log</a>
+    </section>
+
+    <!-- Not Chrome -->
+    <section id="not-chrome" hidden>
+      <p>Daily Work Log is a Chrome extension. Open this link in Google Chrome.</p>
+    </section>
+  </main>
+
+  <script>
+    // Keep in sync with the extension's manifest "key" (fixed ID for everyone).
+    const EXTENSION_ID = "njpmkhaikeieojffcfckcklpapigoiop";
+    const REPO_URL = "https://github.com/basilnewagesmb/time-log-both";
+
+    const PAGE_URL = `chrome-extension://${EXTENSION_ID}/worklog.html`;
+    const PROBE_URL = `chrome-extension://${EXTENSION_ID}/icons/icon16.png`;
+    const $ = (id) => document.getElementById(id);
+
+    $("open").href = PAGE_URL;
+    $("retry").href = PAGE_URL;
+    $("repo").href = REPO_URL;
+
+    const isChromium = !!window.chrome && /Chrome|Chromium|Edg\//.test(navigator.userAgent);
+
+    // An extension's web-accessible image loads only when the extension is installed.
+    function detect() {
+      return new Promise((resolve) => {
+        const img = new Image();
+        const timer = setTimeout(() => resolve(false), 1500);
+        img.onload = () => { clearTimeout(timer); resolve(true); };
+        img.onerror = () => { clearTimeout(timer); resolve(false); };
+        img.src = `${PROBE_URL}?t=${Date.now()}`;
+      });
+    }
+
+    (async () => {
+      if (!isChromium) {
+        $("ready").hidden = true;
+        $("not-chrome").hidden = false;
+        return;
+      }
+      const installed = await detect();
+      if (!installed) {
+        $("ready").hidden = true;
+        $("missing").hidden = false;
+        return;
+      }
+      $("status").textContent = "Opening Daily Work Log…";
+      // Chrome may block navigation to an extension page without a click; the button stays as a fallback.
+      try { location.replace(PAGE_URL); } catch (_) { /* fall back to the button */ }
+      setTimeout(() => { $("status").textContent = "Time to log today's work."; }, 1500);
+    })();
+  </script>
+</body>
+</html>
