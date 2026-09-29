@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Daily Work Log",
+  "version": "1.0.0",
+  "description": "Log time to Jira Cloud (newagesmb.atlassian.net) using your signed-in browser session.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Daily Work Log",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "https://newagesmb.atlassian.net/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Daily Work Log · Jira diagnostics</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; color: #172b4d; }
+    h1 { font-size: 20px; } button { font: inherit; padding: 6px 12px; margin: 4px 4px 4px 0; cursor: pointer; }
+    input { font: inherit; padding: 5px 8px; width: 120px; }
+    pre { background: #f4f5f7; padding: 12px; border-radius: 6px; white-space: pre-wrap; max-height: 420px; overflow: auto; }
+    .ok { color: #216e4e; } .bad { color: #ae2e24; }
+  </style>
+</head>
+<body>
+  <h1>Jira connection diagnostics</h1>
+  <p>Uses your signed-in session at <b>newagesmb.atlassian.net</b>. Nothing is written until you press "Log 0.25h".</p>
+  <div>
+    <button id="btn-me">1. Who am I</button>
+    <button id="btn-projects">2. List projects</button>
+    <button id="btn-issues">3. List WHIP stories</button>
+    <button id="btn-today">5. Today's worklogs</button>
+  </div>
+  <div>
+    <label>Issue key <input id="issue" placeholder="WHIP-123"></label>
+    <button id="btn-log">4. Log 0.25h (test)</button>
+  </div>
+  <pre id="out" aria-live="polite">Ready.</pre>
+  <script src="jira.js"></script>
+  <script src="diagnostics.js"></script>
+</body>
+</html>
