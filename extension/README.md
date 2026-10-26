@@ -36,6 +36,8 @@ With the extension loaded, open `chrome-extension://<extension-id>/diagnostics.h
 | `background.js` | Opens `worklog.html` in a new tab when you click the toolbar icon. |
 | `jira.js` | Jira client: `Jira.getMyself`, `getProjects`, `getIssues`, `logWork`, `getTodaysWorklogs`, `openJiraTab`. |
 | `worklog.html` / `.css` / `.js` | The Daily Work Log UI. |
+| `arena3d.js` | The 3D target range (Three.js + bloom). It mirrors the targets `worklog.js` renders, so it holds no page logic. Without WebGL 2 the flat CSS range is shown instead. |
+| `vendor/three/` | Three.js 0.169.0 (MIT) and its bloom post-processing files, bundled because the extension's CSP only allows its own scripts. Imports of `'three'` in the add-on files were rewritten to relative paths. |
 | `sheet.js` | Sends your day's total to the team Google Sheet. The web app URL and token are set at the top of the file (see `../sheets/README.md`). |
 | `diagnostics.html` / `.js` | Connection test page. |
 | `icons/` | 16, 48 and 128 px toolbar icons. |

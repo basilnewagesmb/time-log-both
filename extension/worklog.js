@@ -11,6 +11,18 @@
   const DEFAULT_PROJECT = "WHIP";
   const TARGET_HOURS = 8;
   const LAST_PROJECT_KEY = "dwl.lastProject";
+  const SESSION_KEY = "dwl.session";
+  const MAX_TARGETS = 4;
+  const PROJECT_COLORS = ["#2df08a", "#b36bff", "#29d3ff", "#ff8f2e", "#ff4fa3", "#ffd23f", "#4f8bff"];
+  const CHEERS = ["Great shot! Keep going!", "Bullseye!", "Direct hit!", "Clean shot!", "Locked on target!"];
+  // Rank by fraction of today's target, highest first.
+  const RANKS = [
+    { min: 1, icon: "🔥", title: "You're on fire!", text: "Daily target hit. Keep logging and level up!" },
+    { min: 0.75, icon: "💥", title: "On a roll", text: "Almost at today's target." },
+    { min: 0.5, icon: "🚀", title: "Locked in", text: "Halfway there. Stay on target." },
+    { min: 0.001, icon: "⚡", title: "Warming up", text: "Good start. Keep the shots coming." },
+    { min: 0, icon: "🎯", title: "Ready, aim…", text: "Pick a target and log your first shot." },
+  ];
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -38,10 +50,30 @@
     targetLabel: $("target-label"),
     progress: $("progress"),
     progressFill: $("progress-fill"),
+    progressPct: $("progress-pct"),
+    rank: $("rank"),
+    rankIcon: $("rank-icon"),
+    rankTitle: $("rank-title"),
+    rankText: $("rank-text"),
+    hitCount: $("hit-count"),
     entries: $("entries"),
     toasts: $("toasts"),
     syncStatus: $("sync-status"),
     syncNow: $("sync-now"),
+    weapons: $("weapons"),
+    weaponArt: $("weapon-art"),
+    targets: $("targets"),
+    blaster: $("blaster"),
+    muzzle: $("muzzle"),
+    beam: $("beam"),
+    lastShot: $("last-shot"),
+    lastShotTitle: $("last-shot-title"),
+    lastShotBody: $("last-shot-body"),
+    sessionTime: $("session-time"),
+    sessionPause: $("session-pause"),
+    keysOpen: $("keys-open"),
+    keysHelp: $("keys-help"),
+    keysClose: $("keys-close"),
   };
 
   const state = {
@@ -52,6 +84,7 @@
     submitting: false,
     projects: [],
     recentKeys: [],
+    arenaKeys: [],
     entriesLoaded: false,
     syncing: false,
   };
@@ -85,6 +118,25 @@
   function pad(n) { return String(n).padStart(2, "0"); }
 
   function issueUrl(key) { return `${Jira.BASE}/browse/${encodeURIComponent(key)}`; }
+
+  function hash(s) {
+    let h = 0;
+    for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) | 0;
+    return Math.abs(h);
+  }
+
+  function projectColor(key) { return PROJECT_COLORS[hash(key) % PROJECT_COLORS.length]; }
+
+  function projectName(key) {
+    const p = state.projects.find((x) => x.key === key);
+    return p ? p.name : key;
+  }
+
+  function sumHoursBy(keyOf) {
+    const out = new Map();
+    for (const e of state.entries) out.set(keyOf(e), (out.get(keyOf(e)) || 0) + e.hours);
+    return out;
+  }
 
   // Handles every failure the same way: signed-out -> banner; otherwise Jira's message in a toast.
   function handleError(err, context) {
@@ -139,6 +191,46 @@
     }
   }
 
+  // ---------- Session timer ----------
+
+  // How long this tab has been open, minus paused time. Kept in sessionStorage so a reload doesn't reset it.
+  const session = { elapsed: 0, since: Date.now(), paused: false };
+
+  function sessionMs() { return session.elapsed + (session.paused ? 0 : Date.now() - session.since); }
+
+  function saveSession() {
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (_) { /* storage unavailable */ }
+  }
+
+  function renderSession() {
+    const s = Math.floor(sessionMs() / 1000);
+    els.sessionTime.textContent = `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+  }
+
+  function renderSessionPaused() {
+    els.sessionPause.setAttribute("aria-pressed", String(session.paused));
+    els.sessionPause.setAttribute("aria-label", session.paused ? "Resume session timer" : "Pause session timer");
+    els.sessionPause.title = session.paused ? "Resume" : "Pause";
+    els.sessionPause.parentElement.classList.toggle("paused", session.paused);
+  }
+
+  function toggleSession() {
+    if (session.paused) session.since = Date.now();
+    else session.elapsed = sessionMs();
+    session.paused = !session.paused;
+    saveSession();
+    renderSessionPaused();
+    renderSession();
+  }
+
+  function startSession() {
+    try { Object.assign(session, JSON.parse(sessionStorage.getItem(SESSION_KEY)) || {}); } catch (_) { /* fresh session */ }
+    saveSession();
+    renderSessionPaused();
+    renderSession();
+    setInterval(renderSession, 1000);
+  }
+
   // ---------- Projects ----------
 
   function readLastProject() {
@@ -149,6 +241,7 @@
     try { localStorage.setItem(LAST_PROJECT_KEY, key); } catch (_) { /* storage unavailable */ }
     state.recentKeys = [key, ...state.recentKeys.filter((k) => k !== key)].slice(0, 5);
     renderProjectOptions(els.project.value);
+    renderArena();
   }
 
   // Recent projects (last logged first) in their own group at the top, then everything A–Z.
@@ -183,6 +276,7 @@
       if (!projects.length) {
         els.project.replaceChildren(el("option", { value: "", text: "No projects available" }));
         renderTaskEmpty("No projects", "You don't have access to any Jira projects.");
+        renderArenaEmpty("No projects to shoot at");
         return;
       }
 
@@ -190,15 +284,160 @@
       const last = readLastProject();
       state.recentKeys = [...new Set([last, ...recentFromJira].filter(Boolean))].slice(0, 5);
       renderProjectOptions();
+      renderArena();
+      if (state.entriesLoaded) renderLastShot(); // now with project names
       els.project.disabled = false;
       loadIssues();
     } catch (err) {
       els.project.replaceChildren(el("option", { value: "", text: "Couldn't load projects" }));
       renderTaskEmpty("Tasks unavailable", "Projects couldn't be loaded.");
+      renderArenaEmpty("Projects couldn't be loaded");
       handleError(err, "Couldn't load projects");
     } finally {
       els.projectWrap.setAttribute("aria-busy", "false");
     }
+  }
+
+  // ---------- Arena ----------
+
+  // Targets and weapon cards show up to MAX_TARGETS projects. The set only changes when
+  // a project outside it is picked, so nothing jumps around after each shot.
+  function updateArenaKeys() {
+    const valid = new Set(state.projects.map((p) => p.key));
+    const current = els.project.value;
+    let keys = state.arenaKeys.filter((k) => valid.has(k));
+    if (!keys.length) {
+      keys = [...new Set([current, ...state.recentKeys, ...state.projects.map((p) => p.key)])]
+        .filter((k) => valid.has(k)).slice(0, MAX_TARGETS);
+    }
+    if (valid.has(current) && !keys.includes(current)) keys = [...keys.slice(0, MAX_TARGETS - 1), current];
+    state.arenaKeys = keys;
+  }
+
+  function renderArenaPlaceholders() {
+    els.targets.dataset.keys = "";
+    els.targets.replaceChildren(...Array.from({ length: 3 }, () =>
+      el("span", { class: "target placeholder" },
+        el("span", { class: "target-body" }, el("span", { class: "target-board" }), el("span", { class: "target-stand" })))));
+    els.weapons.replaceChildren(...Array.from({ length: MAX_TARGETS }, () =>
+      el("span", { class: "weapon placeholder", "aria-hidden": "true" })));
+  }
+
+  function renderArenaEmpty(message) {
+    els.targets.dataset.keys = "";
+    els.targets.replaceChildren(el("span", { class: "targets-empty", text: message }));
+    els.weapons.replaceChildren();
+    aim();
+  }
+
+  function renderArena() {
+    updateArenaKeys();
+    if (!state.arenaKeys.length) return;
+    const current = els.project.value;
+    const today = sumHoursBy((e) => e.issueKey.split("-")[0]);
+    const sub = (key) => (today.get(key) ? `${key} · ${formatHours(today.get(key))} today` : key);
+    const initial = (key) => projectName(key).charAt(0).toUpperCase();
+
+    // Rebuild only when the set changes, so a running hit animation isn't cut off.
+    const sig = state.arenaKeys.join(",");
+    if (els.targets.dataset.keys !== sig) {
+      els.targets.dataset.keys = sig;
+      els.targets.replaceChildren(...state.arenaKeys.map((key) =>
+        el("button", { type: "button", class: "target", tabindex: "-1", style: `--c:${projectColor(key)}`, "data-key": key },
+          el("span", { class: "target-body" },
+            el("span", { class: "target-plate" },
+              el("span", { class: "p-icon", text: initial(key) }),
+              el("span", {}, el("b", { text: projectName(key) }), el("small"))),
+            el("span", { class: "target-board" }),
+            el("span", { class: "target-stand" })))));
+      els.weapons.replaceChildren(...state.arenaKeys.map((key, i) =>
+        el("button", { type: "button", class: "weapon", style: `--c:${projectColor(key)}`, "data-key": key, title: projectName(key), "aria-keyshortcuts": String(i + 1) },
+          el("kbd", { class: "weapon-key", "aria-hidden": "true", text: String(i + 1) }),
+          els.weaponArt.content.cloneNode(true),
+          el("span", { class: "weapon-name", text: projectName(key) }),
+          el("span", { class: "weapon-sub" }))));
+    }
+
+    for (const node of els.targets.children) {
+      node.classList.toggle("is-active", node.dataset.key === current);
+      node.querySelector("small").textContent = sub(node.dataset.key);
+    }
+    for (const node of els.weapons.children) {
+      node.setAttribute("aria-pressed", String(node.dataset.key === current));
+      node.querySelector(".weapon-sub").textContent = sub(node.dataset.key);
+    }
+    requestAnimationFrame(aim);
+    setTimeout(aim, 400); // again once the active target has finished growing
+  }
+
+  function selectProject(key) {
+    if (!key || els.project.disabled || els.project.value === key) return;
+    els.project.value = key;
+    els.project.dispatchEvent(new Event("change"));
+  }
+
+  function center(rect, origin) {
+    return { x: rect.left + rect.width / 2 - origin.left, y: rect.top + rect.height / 2 - origin.top };
+  }
+
+  // Turn the blaster (pivoting on its base, just below the arena) toward the active target.
+  function aim() {
+    const board = els.targets.querySelector(".target.is-active .target-board");
+    if (!board) { els.blaster.style.setProperty("--aim", "0deg"); return; }
+    const arena = els.blaster.offsetParent.getBoundingClientRect();
+    const t = center(board.getBoundingClientRect(), arena);
+    const deg = Math.atan2(t.x - arena.width / 2, arena.height + 90 - t.y) * 180 / Math.PI;
+    // Capped so it reads as first-person; the beam itself still goes straight to the target.
+    els.blaster.style.setProperty("--aim", `${Math.max(-22, Math.min(22, deg)).toFixed(2)}deg`);
+  }
+
+  function restartAnimation(node, cls) {
+    node.classList.remove(cls);
+    void node.offsetWidth; // force a reflow so the animation plays again
+    node.classList.add(cls);
+  }
+
+  // Muzzle flash, then a beam to the project's target and a "+1h" on impact.
+  function fire(projectKey, hours) {
+    document.dispatchEvent(new CustomEvent("dwl:fire", { detail: { key: projectKey, text: `+${formatHours(hours)}` } }));
+    restartAnimation(els.blaster, "recoil");
+    const target = [...els.targets.children].find((n) => n.dataset.key === projectKey);
+    if (!target) return;
+    const arena = els.beam.offsetParent.getBoundingClientRect();
+    const m = center(els.muzzle.getBoundingClientRect(), arena);
+    const t = center(target.querySelector(".target-board").getBoundingClientRect(), arena);
+    const len = Math.hypot(t.x - m.x, t.y - m.y);
+    const deg = Math.atan2(t.x - m.x, m.y - t.y) * 180 / Math.PI;
+    Object.assign(els.beam.style, { left: `${m.x}px`, top: `${m.y - len}px`, height: `${len}px`, transform: `rotate(${deg}deg)` });
+    restartAnimation(els.beam, "fire");
+    setTimeout(() => {
+      restartAnimation(target, "hit");
+      const pop = el("span", { class: "hit-pop", text: `+${formatHours(hours)}` });
+      target.append(pop);
+      setTimeout(() => pop.remove(), 1700);
+    }, 160);
+  }
+
+  function renderLastShot(highlightId) {
+    const endOf = (e) => e.started.getTime() + e.seconds * 1000;
+    const latest = state.entries.find((e) => highlightId && e.id === highlightId) ||
+      state.entries.reduce((a, e) => (!a || endOf(e) > endOf(a) ? e : a), null);
+    els.lastShot.classList.toggle("has-shot", !!latest);
+    if (!latest) {
+      els.lastShotTitle.textContent = "Ready to fire";
+      els.lastShotBody.replaceChildren("Pick a project, pick a task, and shoot your first hour.");
+      return;
+    }
+    const projectKey = latest.issueKey.split("-")[0];
+    els.lastShotTitle.textContent = highlightId ? "Time logged!" : "Last shot";
+    els.lastShotBody.replaceChildren(
+      el("div", { class: "ls-project" },
+        el("span", { class: "p-icon", style: `--c:${projectColor(projectKey)}`, text: projectName(projectKey).charAt(0).toUpperCase() }),
+        projectName(projectKey)),
+      el("div", { class: "ls-task", title: latest.summary, text: `${latest.issueKey} · ${latest.summary}` }),
+      el("div", { class: "ls-time", text: `⏱ ${formatHours(latest.hours)} · ${formatTime(latest.started)} – ${formatTime(new Date(endOf(latest)))}` }),
+      el("div", { class: "ls-cheer", text: CHEERS[hash(latest.id || latest.issueKey) % CHEERS.length] }));
+    if (highlightId) restartAnimation(els.lastShot, "pop");
   }
 
   // ---------- Tasks ----------
@@ -292,7 +531,7 @@
             (issue.parent ? `, ${issue.type || "subtask"} of ${issue.parent.key}` : "") +
             (notMine ? `, ${notMine}` : ""),
         });
-        return el("label", { class: `task${issue.subtask ? " is-subtask" : ""}${child ? " is-child" : ""}`, title: issue.summary },
+        return el("label", { class: `task${issue.subtask ? " is-subtask" : ""}${child ? " is-child" : ""}`, title: issue.summary, "data-key": issue.key },
           input,
           el("span", { class: "task-main" },
             el("span", { class: "task-line" },
@@ -300,14 +539,25 @@
               el("span", { class: "task-key", text: issue.key }),
               el("span", { class: "task-summary", text: issue.summary })),
             meta ? el("span", { class: "task-parent", title: meta, text: meta }) : null),
+          el("span", { class: "task-today", title: "Logged today" }),
           el("span", { class: `pill ${issue.category}`, text: issue.status }));
       }));
+      updateTaskBadges();
     }
 
     els.taskCount.textContent = q
       ? `${rows.length} of ${state.issues.length} tasks`
       : `${state.issues.length} task${state.issues.length === 1 ? "" : "s"}`;
     updateSubmitState();
+  }
+
+  // Hours already logged today on each task, updated in place so focus in the list survives.
+  function updateTaskBadges() {
+    const today = sumHoursBy((e) => e.issueKey);
+    els.taskList.querySelectorAll(".task[data-key]").forEach((row) => {
+      const h = today.get(row.dataset.key);
+      row.querySelector(".task-today").textContent = h ? formatHours(h) : "";
+    });
   }
 
   // ---------- Today's entries ----------
@@ -323,10 +573,17 @@
 
   function renderProgress(totalHours) {
     const pct = Math.min(100, (totalHours / TARGET_HOURS) * 100);
-    els.totalLabel.textContent = `${formatHours(totalHours) === "0m" ? "0h" : formatHours(totalHours)} logged`;
+    els.totalLabel.textContent = formatHours(totalHours) === "0m" ? "0h" : formatHours(totalHours);
     els.targetLabel.textContent = `${TARGET_HOURS}h`;
     els.progressFill.style.width = `${pct}%`;
+    els.progressPct.textContent = `${Math.floor(pct)}%`;
     els.progressFill.classList.toggle("complete", totalHours >= TARGET_HOURS);
+
+    const rank = RANKS.find((r) => totalHours / TARGET_HOURS >= r.min);
+    els.rankIcon.textContent = rank.icon;
+    els.rankTitle.textContent = rank.title;
+    els.rankText.textContent = rank.text;
+    els.rank.classList.toggle("on-fire", totalHours >= TARGET_HOURS);
     els.progress.setAttribute("aria-valuemax", String(TARGET_HOURS));
     els.progress.setAttribute("aria-valuenow", String(Math.round(totalHours * 100) / 100));
     els.progress.setAttribute("aria-valuetext", `${formatHours(totalHours)} of ${TARGET_HOURS} hours`);
@@ -336,6 +593,10 @@
     els.entries.setAttribute("aria-busy", "false");
     const total = state.entries.reduce((s, e) => s + e.hours, 0);
     renderProgress(total);
+    renderLastShot(highlightId);
+    renderArena();
+    updateTaskBadges();
+    els.hitCount.textContent = state.entries.length ? `(${state.entries.length})` : "";
 
     if (!state.entries.length) {
       els.entries.replaceChildren(el("li", { class: "empty" },
@@ -477,6 +738,7 @@
 
     try {
       const worklog = await Jira.logWork(key, hours, els.note.value, startedDate());
+      fire(key.split("-")[0], hours);
       toast(`Logged ${formatHours(hours)} on ${key}.`, "success");
       rememberProject(key.split("-")[0]);
       els.note.value = "";
@@ -485,11 +747,106 @@
     } catch (err) {
       handleError(err, `Couldn't log time on ${key}`);
       if (!err.auth) showFormError(err.message);
+      restartAnimation(els.blaster, "miss");
+      document.dispatchEvent(new CustomEvent("dwl:miss"));
     } finally {
       state.submitting = false;
       els.submit.removeAttribute("aria-busy");
-      els.submit.querySelector(".btn-label").textContent = "Log time";
+      els.submit.querySelector(".btn-label").textContent = "Shoot time";
       updateSubmitState();
+    }
+  }
+
+  // ---------- Keyboard ----------
+
+  const DURATIONS = [0.25, 0.5, 1, 2, 4];
+  let spaceHandled = false;
+
+  function isTextField(node) {
+    return !!(node.closest && node.closest(
+      "textarea, select, [contenteditable], input:not([type=radio]):not([type=checkbox]):not([type=button]):not([type=submit])"));
+  }
+
+  function stepProject(delta) {
+    const keys = state.arenaKeys;
+    if (!keys.length) return;
+    const i = keys.indexOf(els.project.value);
+    const next = i < 0 ? (delta > 0 ? 0 : keys.length - 1) : (i + delta + keys.length) % keys.length;
+    selectProject(keys[next]);
+  }
+
+  function stepTask(delta) {
+    const radios = [...els.taskList.querySelectorAll('input[name="task"]')];
+    if (!radios.length) return;
+    const i = radios.findIndex((r) => r.checked);
+    const next = radios[i < 0 ? (delta > 0 ? 0 : radios.length - 1) : Math.min(radios.length - 1, Math.max(0, i + delta))];
+    next.checked = true;
+    next.dispatchEvent(new Event("change", { bubbles: true }));
+    next.closest(".task").scrollIntoView({ block: "nearest" });
+  }
+
+  // Moves between the quick durations; from an in-between value it goes to the nearest one in that direction.
+  function stepDuration(delta) {
+    const h = Number(els.hours.value) || 1;
+    let i = DURATIONS.findIndex((d) => d >= h);
+    if (i < 0) i = DURATIONS.length;
+    const next = delta > 0 ? (DURATIONS[i] === h ? i + 1 : i) : i - 1;
+    if (next < 0 || next >= DURATIONS.length) return;
+    els.hours.value = DURATIONS[next];
+    syncChips();
+  }
+
+  function shoot() {
+    if (state.submitting) return;
+    if (!state.selectedKey) return showFormError("Pick a task to log time against (↑ ↓).");
+    els.form.requestSubmit();
+  }
+
+  function openKeys() {
+    if (!els.keysHelp.open) els.keysHelp.showModal();
+  }
+
+  function onKeyDown(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || els.keysHelp.open) return;
+    const t = e.target;
+    if (e.key === "Escape") {
+      if (t === els.taskFilter && els.taskFilter.value) return; // the search box clears itself first
+      if (isTextField(t)) t.blur();
+      return;
+    }
+    if (isTextField(t)) return;
+
+    // Arrow keys on a task radio already move the selection natively.
+    const onRadio = t.matches && t.matches('input[type="radio"]');
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    let handled = true;
+    if (/^[1-9]$/.test(key)) {
+      const k = state.arenaKeys[Number(key) - 1];
+      if (k) selectProject(k); else handled = false;
+    } else {
+      switch (key) {
+        case "ArrowLeft": case "ArrowRight":
+          if (onRadio) handled = false; else stepProject(key === "ArrowLeft" ? -1 : 1);
+          break;
+        case "a": case "d": stepProject(key === "a" ? -1 : 1); break;
+        case "ArrowUp": case "ArrowDown":
+          if (onRadio) handled = false; else stepTask(key === "ArrowUp" ? -1 : 1);
+          break;
+        case "w": case "s": stepTask(key === "w" ? -1 : 1); break;
+        case "q": case "e": stepDuration(key === "q" ? -1 : 1); break;
+        case " ":
+          if (t.matches && t.matches('input[type="checkbox"]')) handled = false;
+          else if (!e.repeat) shoot();
+          break;
+        case "/": els.taskFilter.focus(); break;
+        case "n": els.note.focus(); break;
+        case "?": openKeys(); break;
+        default: handled = false;
+      }
+    }
+    if (handled) {
+      e.preventDefault();
+      spaceHandled = key === " ";
     }
   }
 
@@ -499,7 +856,24 @@
     els.openJira.addEventListener("click", () => Jira.openJiraTab());
     els.reload.addEventListener("click", () => location.reload());
 
-    els.project.addEventListener("change", () => { els.taskFilter.value = ""; loadIssues(); });
+    els.project.addEventListener("change", () => { els.taskFilter.value = ""; renderArena(); loadIssues(); });
+    for (const box of [els.weapons, els.targets]) {
+      box.addEventListener("click", (e) => {
+        const pick = e.target.closest("[data-key]");
+        if (pick) selectProject(pick.dataset.key);
+      });
+    }
+    els.sessionPause.addEventListener("click", toggleSession);
+
+    document.addEventListener("keydown", onKeyDown);
+    // Space is "shoot" even on a focused button, so stop that button's own click on keyup.
+    document.addEventListener("keyup", (e) => {
+      if (e.key === " " && spaceHandled) { e.preventDefault(); spaceHandled = false; }
+    });
+    els.keysOpen.addEventListener("click", openKeys);
+    els.keysClose.addEventListener("click", () => els.keysHelp.close());
+    els.keysHelp.addEventListener("click", (e) => { if (e.target === els.keysHelp) els.keysHelp.close(); });
+    window.addEventListener("resize", () => requestAnimationFrame(aim));
     els.storiesOnly.addEventListener("change", loadIssues);
     els.taskFilter.addEventListener("input", () => { if (state.issues.length) renderIssues(); });
 
@@ -527,6 +901,8 @@
 
   function init() {
     renderDate();
+    startSession();
+    renderArenaPlaceholders();
     renderTaskSkeleton();
     renderEntriesSkeleton();
     syncChips();

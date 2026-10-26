@@ -7,7 +7,7 @@
   <link rel="icon" href="icons/icon48.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="worklog.css">
 </head>
 <body>
@@ -15,13 +15,33 @@
 
   <header class="topbar">
     <div class="brand">
-      <img src="icons/icon48.png" alt="" width="28" height="28">
+      <svg class="brand-mark" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true">
+        <circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="3"/>
+        <circle cx="24" cy="24" r="9" fill="none" stroke="currentColor" stroke-width="3"/>
+        <circle cx="24" cy="24" r="3" fill="currentColor"/>
+        <path d="M24 0v10M24 38v10M0 24h10M38 24h10" stroke="currentColor" stroke-width="3"/>
+      </svg>
       <div>
         <h1>Daily Work Log</h1>
-        <p class="date" id="today-label"></p>
+        <p class="tagline">Shoot <span aria-hidden="true">•</span> Log <span aria-hidden="true">•</span> Level up</p>
       </div>
     </div>
     <div class="user-actions">
+      <button type="button" class="keys-btn" id="keys-open" aria-keyshortcuts="?" title="Keyboard controls (?)">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+        <span>Keys</span>
+      </button>
+      <div class="session" role="timer" aria-label="Session time">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M15 1H9v2h6V1zm4.03 6.39 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.96 8.96 0 0 0 12 4a9 9 0 1 0 9 9c0-2.12-.74-4.07-1.97-5.61zM12 20a7 7 0 1 1 0-14 7 7 0 0 1 0 14zm-1-12h2v6h-2z"/></svg>
+        <div class="session-text">
+          <span class="session-label">Session time</span>
+          <span class="session-time" id="session-time">00:00:00</span>
+        </div>
+        <button type="button" class="session-btn" id="session-pause" aria-pressed="false" aria-label="Pause session timer" title="Pause">
+          <svg class="i-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+          <svg class="i-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 5v14l12-7z"/></svg>
+        </button>
+      </div>
       <div class="user" id="user" aria-busy="true">
         <span class="avatar skeleton" id="user-avatar" aria-hidden="true"></span>
         <span class="user-name skeleton-text" id="user-name">Loading…</span>
@@ -37,99 +57,212 @@
     </div>
   </div>
 
-  <main class="layout">
-    <form class="card" id="log-form" novalidate aria-labelledby="form-title">
-      <h2 id="form-title">Log time</h2>
+  <!-- Decorative scene: the weapon cards below are the accessible project picker. -->
+  <section class="arena" aria-hidden="true">
+    <div class="sky">
+      <span class="cloud c1"></span><span class="cloud c2"></span><span class="cloud c3"></span><span class="cloud c4"></span>
+    </div>
+    <svg class="mountains" viewBox="0 0 1200 300" preserveAspectRatio="none">
+      <path class="m-back" d="M0 210 L90 120 L160 170 L260 60 L350 150 L430 100 L520 170 L600 90 L690 160 L780 70 L870 150 L960 110 L1040 170 L1120 80 L1200 140 V300 H0 Z"/>
+      <path class="m-spire" d="M1010 210 L1016 40 L1020 0 L1024 40 L1030 210 Z"/>
+      <path class="m-front" d="M0 250 L120 170 L210 230 L320 150 L420 230 L540 190 L640 240 L760 180 L860 240 L980 170 L1090 230 L1200 190 V300 H0 Z"/>
+    </svg>
+    <div class="floor"></div>
+    <div class="hangar"><span class="lamp l1"></span><span class="lamp l2"></span><span class="lamp l3"></span><span class="lamp l4"></span></div>
+    <div class="sign sign-left">Focus<br>Log<br>Grow
+      <svg viewBox="0 0 48 48" width="34" height="34"><circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="24" r="4" fill="currentColor"/><path d="M24 2v12M24 34v12M2 24h12M34 24h12" stroke="currentColor" stroke-width="3"/></svg>
+    </div>
+
+    <div class="targets" id="targets"></div>
+    <div class="beam" id="beam"></div>
+
+    <div class="blaster" id="blaster">
+      <svg viewBox="0 0 200 260">
+        <defs>
+          <linearGradient id="metal" x1="0" x2="1">
+            <stop offset="0" stop-color="#0a1226"/><stop offset=".5" stop-color="#25355c"/><stop offset="1" stop-color="#0a1226"/>
+          </linearGradient>
+          <linearGradient id="core" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#fff2c4"/><stop offset="1" stop-color="#ff7a1a"/>
+          </linearGradient>
+        </defs>
+        <path d="M30 260 L70 70 H130 L170 260 Z" fill="url(#metal)" stroke="#2c4a86" stroke-width="2"/>
+        <path d="M78 74 L84 14 H116 L122 74 Z" fill="url(#metal)" stroke="#2c4a86" stroke-width="2"/>
+        <rect x="86" y="8" width="28" height="12" rx="3" fill="#152447" stroke="#3a6cd0" stroke-width="2"/>
+        <circle id="muzzle" cx="100" cy="10" r="5" fill="#9ff3ff"/>
+        <path class="blaster-glow" d="M54 250 L80 92 M146 250 L120 92" stroke="#29d3ff" stroke-width="4" stroke-linecap="round"/>
+        <path d="M88 110 H112 L118 200 H82 Z" fill="url(#core)" opacity=".9"/>
+        <path d="M84 130 H116 M83 150 H117 M82 170 H118" stroke="#0a1226" stroke-width="5"/>
+        <path d="M60 230 H140" stroke="#ff9f43" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <span class="muzzle-flash"></span>
+    </div>
+
+    <div class="last-shot" id="last-shot">
+      <div class="last-shot-head">
+        <span class="check"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></span>
+        <strong id="last-shot-title">Ready to fire</strong>
+      </div>
+      <div class="last-shot-body" id="last-shot-body">Pick a project, pick a task, and shoot your first hour.</div>
+    </div>
+  </section>
+
+  <main class="hud">
+    <form class="hud-form" id="log-form" novalidate aria-labelledby="form-title">
+      <h2 class="visually-hidden" id="form-title">Log time</h2>
 
       <!-- Project -->
-      <div class="field">
-        <label for="project">Project</label>
-        <div class="select-wrap" id="project-wrap" aria-busy="true">
-          <select id="project" disabled>
-            <option>Loading projects…</option>
-          </select>
+      <section class="panel panel-project" aria-labelledby="project-title">
+        <div class="panel-head">
+          <span class="panel-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" width="22" height="22"><circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="24" cy="24" r="5" fill="currentColor"/><path d="M24 2v10M24 36v10M2 24h10M36 24h10" stroke="currentColor" stroke-width="4"/></svg>
+          </span>
+          <h3 id="project-title">Weapon <kbd class="hint-key" aria-hidden="true">1–4</kbd></h3>
+          <div class="select-wrap project-select" id="project-wrap" aria-busy="true">
+            <label for="project" class="visually-hidden">All projects</label>
+            <select id="project" disabled>
+              <option>Loading projects…</option>
+            </select>
+          </div>
         </div>
-      </div>
+        <div class="weapons" id="weapons" role="group" aria-label="Recent projects"></div>
+      </section>
 
       <!-- Task -->
-      <fieldset class="field task-section">
+      <fieldset class="panel panel-task task-section">
         <div class="task-head">
-          <legend>Task</legend>
+          <legend>Task <kbd class="hint-key" aria-hidden="true">↑↓</kbd></legend>
           <label class="toggle">
             <input type="checkbox" id="stories-only" checked>
             <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
             <span>Stories &amp; subtasks</span>
           </label>
         </div>
-        <input type="search" id="task-filter" class="input" placeholder="Filter by key or summary" aria-label="Filter tasks" autocomplete="off">
+        <div class="search">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input type="search" id="task-filter" class="input" placeholder="Search task…" aria-label="Filter tasks" aria-keyshortcuts="/" autocomplete="off">
+          <kbd class="hint-key search-key" aria-hidden="true">/</kbd>
+        </div>
         <div class="task-list" id="task-list" role="radiogroup" aria-label="Tasks assigned to you" aria-busy="true"></div>
         <p class="hint" id="task-count" aria-live="polite"></p>
       </fieldset>
 
       <!-- Time -->
-      <div class="field-row">
-        <div class="field">
-          <label for="hours">Hours</label>
-          <input type="number" id="hours" class="input" min="0.25" max="24" step="0.25" value="1" required inputmode="decimal">
-          <div class="chips" role="group" aria-label="Quick durations">
-            <button type="button" class="chip" data-hours="0.25">15m</button>
-            <button type="button" class="chip" data-hours="0.5">30m</button>
-            <button type="button" class="chip" data-hours="1">1h</button>
-            <button type="button" class="chip" data-hours="2">2h</button>
-            <button type="button" class="chip" data-hours="4">4h</button>
+      <section class="panel panel-time" aria-labelledby="time-title">
+        <div class="time-head">
+          <h3 id="time-title">Log time</h3>
+          <kbd class="hint-key" aria-hidden="true">Q / E</kbd>
+        </div>
+        <div class="chips" role="group" aria-label="Duration">
+          <button type="button" class="chip" data-hours="0.25">15m</button>
+          <button type="button" class="chip" data-hours="0.5">30m</button>
+          <button type="button" class="chip" data-hours="1">1h</button>
+          <button type="button" class="chip" data-hours="2">2h</button>
+          <button type="button" class="chip" data-hours="4">4h</button>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="hours">Hours</label>
+            <input type="number" id="hours" class="input" min="0.25" max="24" step="0.25" value="1" required inputmode="decimal">
+          </div>
+          <div class="field">
+            <label for="start">Start time</label>
+            <input type="time" id="start" class="input" value="09:00" required>
           </div>
         </div>
-        <div class="field">
-          <label for="start">Started at</label>
-          <input type="time" id="start" class="input" value="09:00" required>
-        </div>
-      </div>
 
-      <!-- Note -->
-      <div class="field">
-        <label for="note">Note <span class="optional">(optional)</span></label>
-        <textarea id="note" class="input" rows="3" placeholder="What did you work on?"></textarea>
-      </div>
+        <textarea id="note" class="input note" rows="1" placeholder="Note (optional): what did you work on?" aria-label="Note (optional)" aria-keyshortcuts="N"></textarea>
 
-      <p class="form-error" id="form-error" role="alert" hidden></p>
+        <p class="form-error" id="form-error" role="alert" hidden></p>
 
-      <button type="submit" class="btn btn-primary btn-block" id="submit" disabled>
-        <span class="btn-label">Log time</span>
-        <span class="spinner" aria-hidden="true"></span>
-      </button>
+        <button type="submit" class="btn btn-shoot btn-block" id="submit" aria-keyshortcuts="Space" disabled>
+          <svg class="shoot-icon" viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><circle cx="24" cy="24" r="15" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="24" cy="24" r="4" fill="currentColor"/><path d="M24 2v10M24 36v10M2 24h10M36 24h10" stroke="currentColor" stroke-width="4"/></svg>
+          <span class="btn-label">Shoot time</span>
+          <span class="spinner" aria-hidden="true"></span>
+          <kbd class="shoot-key" aria-hidden="true">Space</kbd>
+        </button>
+      </section>
     </form>
 
-    <aside class="card today" aria-labelledby="today-title">
+    <aside class="panel panel-progress today" aria-labelledby="today-title">
       <div class="today-head">
-        <h2 id="today-title">Today</h2>
+        <span class="panel-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 20h3V10H4zm6.5 0h3V4h-3zM17 20h3v-7h-3z"/></svg>
+        </span>
+        <h3 id="today-title">Today</h3>
         <button type="button" class="icon-btn" id="refresh-today" aria-label="Refresh today's entries" title="Refresh">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
         </button>
       </div>
 
-      <div class="progress-block">
-        <div class="progress-label">
-          <span id="total-label">0h logged</span>
-          <span class="muted">of <span id="target-label">8h</span></span>
+      <div class="score-row">
+        <span class="score"><span id="total-label">0h</span> <span class="muted">/ <span id="target-label">8h</span></span></span>
+        <div class="rank" id="rank">
+          <span class="rank-icon" id="rank-icon" aria-hidden="true">🎯</span>
+          <div class="rank-copy">
+            <strong class="rank-title" id="rank-title">Ready, aim…</strong>
+            <span class="rank-text" id="rank-text">Pick a target and log your first shot.</span>
+          </div>
         </div>
+      </div>
+      <div class="progress-row">
         <div class="progress" role="progressbar" id="progress" aria-label="Hours logged today" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0">
           <div class="progress-fill" id="progress-fill"></div>
         </div>
+        <span class="progress-pct" id="progress-pct">0%</span>
       </div>
 
       <div class="sync">
-        <span class="sync-status" id="sync-status" role="status" aria-live="polite">Team sheet connected</span>
-        <button type="button" class="link-btn" id="sync-now">Sync now</button>
+        <span class="sync-status" id="sync-status" role="status" aria-live="polite">Team connected</span>
+        <button type="button" class="sync-btn" id="sync-now">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 4V1L8 5l4 4V6a6 6 0 0 1 5.65 8.03l1.46 1.46A8 8 0 0 0 12 4zm0 14a6 6 0 0 1-5.65-8.03L4.89 8.51A8 8 0 0 0 12 20v3l4-4-4-4z"/></svg>
+          Sync now
+        </button>
       </div>
 
+      <h4 class="entries-title">Hits today <span class="muted" id="hit-count"></span></h4>
       <ul class="entries" id="entries" aria-live="polite" aria-busy="true"></ul>
     </aside>
   </main>
 
+  <footer class="footer">
+    <span class="crumbs">Your time <span aria-hidden="true">›</span> Your mission <span aria-hidden="true">›</span> Bigger goals</span>
+    <span class="date" id="today-label"></span>
+  </footer>
+
+  <dialog class="keys-help" id="keys-help" aria-labelledby="keys-title">
+    <div class="keys-help-head">
+      <h2 id="keys-title">Keyboard controls</h2>
+      <button type="button" class="icon-btn" id="keys-close" aria-label="Close">×</button>
+    </div>
+    <dl class="keys-list">
+      <div><dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd>Pick a weapon (project)</dd></div>
+      <div><dt><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd></dt><dd>Previous / next project</dd></div>
+      <div><dt><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>W</kbd> <kbd>S</kbd></dt><dd>Previous / next task</dd></div>
+      <div><dt><kbd>Q</kbd> <kbd>E</kbd></dt><dd>Shorter / longer duration</dd></div>
+      <div><dt><kbd>Space</kbd></dt><dd>Shoot time (log it)</dd></div>
+      <div><dt><kbd>/</kbd></dt><dd>Search tasks</dd></div>
+      <div><dt><kbd>N</kbd></dt><dd>Write a note</dd></div>
+      <div><dt><kbd>Ctrl</kbd> + <kbd>Enter</kbd></dt><dd>Shoot from the note field</dd></div>
+      <div><dt><kbd>Esc</kbd></dt><dd>Leave a text field / close this</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>Show these controls</dd></div>
+    </dl>
+  </dialog>
+
   <div class="toasts" id="toasts" aria-live="assertive" aria-atomic="false"></div>
+
+  <template id="weapon-art">
+    <svg class="weapon-art" viewBox="0 0 120 52" aria-hidden="true">
+      <path d="M6 16 H74 L82 10 H104 V17 H114 V25 H104 V31 H76 L70 37 H58 L52 50 H38 L42 37 H28 L20 30 H6 Z" fill="#141f3d" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      <rect x="26" y="20" width="40" height="6" rx="3" fill="currentColor"/>
+      <rect x="84" y="15" width="16" height="4" rx="2" fill="currentColor" opacity=".7"/>
+      <circle cx="112" cy="21" r="3" fill="#fff"/>
+    </svg>
+  </template>
 
   <script src="jira.js"></script>
   <script src="sheet.js"></script>
   <script src="worklog.js"></script>
+  <script type="module" src="arena3d.js"></script>
 </body>
 </html>
